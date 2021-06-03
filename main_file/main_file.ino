@@ -5,10 +5,10 @@
 #include <PubSubClient.h>
 #include <LiquidCrystal_I2C.h>
 
-int button_1 = 2;
-int button_2 = 4;
-int button_3 = 5;
-int button_4 = 12; 
+int button_1 = 2; //pin2
+int button_2 = 4; //pin4
+int button_3 = 5; //pin5
+int button_4 = 12; //pin12
   
 bool vbut1 = false;
 bool vbut2 = false;
