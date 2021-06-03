@@ -1,9 +1,19 @@
+
 // Gebruikte bibliotheken
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <LiquidCrystal_I2C.h>
 
+int button_1 = 2; //pin2
+int button_2 = 4; //pin4
+int button_3 = 5; //pin5
+int button_4 = 12; //pin12
+  
+bool vbut1 = false;
+bool vbut2 = false;
+bool vbut3 = false;
+bool vbut4 = false;
 //RIDE ID
 const String RIDE_ID = "07";
 
@@ -115,7 +125,10 @@ bool unsubscribe(char* topic){
 
 
 void setup() {
-  
+  pinMode (button_1, INPUT);
+pinMode (button_2, INPUT);
+pinMode (button_3, INPUT);
+pinMode (button_4, INPUT);
   
   // Gekleurde LEDs worden aangestuurd met de ESP32 LED control (LEDC) library
   // Initialiseer de LED control kanalen
@@ -179,14 +192,62 @@ void setup() {
   
   //code
 
-}
+
+
+
 
 
 
 
 void loop() {
+// buttoncheck();
+  entry();
+
+
+}
+void buttoncheck(){
+   vbut1 = digitalRead(button_1);
+   vbut2 = digitalRead(button_2);
+   vbut3 = digitalRead(button_3);
+   vbut4 = digitalRead(button_4);
+
+   
+if (vbut1 == HIGH){
+  digitalWrite(testled, HIGH);
+}else if(vbut2 == HIGH){
+  digitalWrite(testled, LOW);}
+  else if(vbut3 == HIGH){
+  digitalWrite(testled, HIGH);}
+  else if(vbut4 == HIGH){
+  digitalWrite(testled, LOW);}
+  
+
+}
+
+void entry(){
+   
+     vbut1 = digitalRead(button_1);
+      entrycode = random(9999);
+  if (!buttonpressed){
+     
+  if (vbut1 == HIGH){
+    lcd.clear();
+    lcd.print("Code: ");
+    lcd.setCursor(7,0);
+   lcd.print(entrycode); 
+   
+     buttonpressed = true;
+     lcdwritetimer();
+     
+
+}
+}
+}
+   
+
    // Nodig om de MQTT client zijn werk te laten doen
   mqttClient.loop();
+
 
 
 }
