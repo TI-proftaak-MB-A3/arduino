@@ -4,9 +4,12 @@
 #include <PubSubClient.h>
 #include <LiquidCrystal_I2C.h>
 
+//RIDE ID
+const String RIDE_ID = "07";
+
 // Zelf instellen voor je eigen WLAN
-const char* WLAN_SSID = "Safehouse";
-const char* WLAN_ACCESS_KEY = "WwiELp66!";
+const char* WLAN_SSID = "iPhone van Robin";
+const char* WLAN_ACCESS_KEY = "R0biny0!@";
 
 // CLIENT_ID moet uniek zijn, dus zelf aanpassen (willekeurige letters en cijfers)
 const char* MQTT_CLIENT_ID = "vfduvfxjhuyrfdfvkjkffyeduhbnbfyt6665e3whiyr85yg5";
@@ -20,11 +23,11 @@ const char* MQTT_PASSWORD = "tiavans";
 // Definieer de MQTT topics
 
 //Pushen
-const char* MQTT_TOPIC_CODE = "ti/1.4/a3/code";
-const char* MQTT_TOPIC_AWNSER = "ti/1.4/awnser";
+ char* MQTT_TOPIC_CODE = "ti/1.4/a3/code";
+ char* MQTT_TOPIC_AWNSER = "ti/1.4/awnser";
 
 //Subscribe
-const char* MQTT_TOPIC_QUESTION = "ti/1.4/a3/question";
+ char* MQTT_TOPIC_QUESTION = "ti/1.4/a3/question";
 
 // Push & Subscribe
 
@@ -58,17 +61,17 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   
   // Kijk welk topic is ontvangen en handel daarnaar
 
-  if(strcmp(topic, MQTT_TOPIC_QUESTION) == 0){
+  if(strcmp(topic, MQTT_TOPIC_CODE) == 0){
     //code jasper lcd);
     char txt[LINE_LENGTH + 1];
     for (int i = 0; i < LINE_LENGTH + 1; i++) { txt[i] = '\0'; }
     strncpy(txt, (const char *) payload, length > 16 ? 16 : length);
     // Laat de tekst zien in zowel log als op het LCD
-    Serial.print("Text: ");
+    Serial.print("Code: ");
     Serial.println(txt);
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print(MQTT_TOPIC_QUESTION);
+    lcd.print(MQTT_TOPIC_CODE);
     lcd.setCursor(0, 1);
     lcd.print(txt);
   }
@@ -78,6 +81,38 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 //    // De payload is een tekst voor op het LCD
 //    // Let op, geen null-ter`cd.init();
 }
+
+String code_gen(){
+  int random_num = random(0,99);
+  String number = (String)random_num;
+  Serial.print("random number: ");
+  Serial.println(number);
+  String STRING_QUESTION_ID = "";
+  if(random_num < 10){
+     String temp_num = ""+number;
+     STRING_QUESTION_ID = "0" + temp_num;
+  } else {
+     STRING_QUESTION_ID = number;
+  }
+  String ride = RIDE_ID;
+  String random_last = (String)random(10,99);
+  Serial.print("Ride: ");
+  Serial.println(ride);
+  Serial.print("Question id: ");
+  Serial.println(STRING_QUESTION_ID);
+  Serial.print("Random last: ");
+  Serial.println(random_last);
+  return ride+""+STRING_QUESTION_ID+""+random_last;
+}
+
+bool subscribe(char* topic){
+  return mqttClient.subscribe(topic, MQTT_QOS);
+}
+
+bool unsubscribe(char* topic){
+  return mqttClient.unsubscribe(topic);
+}
+
 
 void setup() {
   
@@ -129,16 +164,25 @@ void setup() {
     Serial.println("Connected to MQTT broker");
   }
 
- if (!mqttClient.subscribe(MQTT_TOPIC_QUESTION, MQTT_QOS)) {
-    Serial.print("Failed to subscribe topic: ");
-    Serial.println(MQTT_TOPIC_QUESTION);
-  } else {
-    Serial.print("Subscribed to topic: ");
-    Serial.println(MQTT_TOPIC_QUESTION);
-  }
+  Serial.print("Subscribing to topic: ");
+  Serial.println(MQTT_TOPIC_CODE);
+  Serial.print("Subscribtion: ");
+  Serial.println(subscribe(MQTT_TOPIC_CODE));
+
+  
+  String code = code_gen();
+
+  Serial.print("Subscribing to topic: ");
+  Serial.println(MQTT_TOPIC_CODE);
+  Serial.print("Subscribtion: ");
+  Serial.println(mqttClient.publish(MQTT_TOPIC_CODE, code.c_str()));
+  
   //code
 
 }
+
+
+
 
 void loop() {
    // Nodig om de MQTT client zijn werk te laten doen
