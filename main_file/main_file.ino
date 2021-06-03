@@ -41,7 +41,6 @@ lcd.begin(16, 2);
 void loop() {
 // buttoncheck();
   entry();
-  time();
 
 
 }
@@ -63,13 +62,19 @@ if (vbut1 == HIGH){
   
 
 }
-void lcdwritetimer(){
-  while(timer){
+void lcdwritetimer(){  
+
+  while(timer){ 
+    time();
+
   lcd.setCursor(12,1);
   lcd.print(countdown);
+  Serial.println(countdown);
   if(countdown == 9){
         lcd.setCursor(13,1);
         lcd.print( "    ");
+      }else if(countdown == 0){
+        timer = false;
       }
 }
   lcd.clear();
