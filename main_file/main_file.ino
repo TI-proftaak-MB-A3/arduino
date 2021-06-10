@@ -5,76 +5,68 @@
 #include <PubSubClient.h>
 #include <LiquidCrystal_I2C.h>
 
-int button_1 = 2; //pin2
-int button_2 = 4; //pin4
-int button_3 = 5; //pin5
-int button_4 = 12; //pin12
+int button_1 = 12; //pin2
+int button_2 = 18; //pin4
+int button_3 = 4;  //pin5
+int button_4 = 2;  //pin12
+
+int timer = 30;
 
 bool buttonPressed = false;
 
 bool mqttConnected = false;
-  
+
+bool awnserpressed = false;
+
 bool vbut1 = false;
 bool vbut2 = false;
 bool vbut3 = false;
 bool vbut4 = false;
 
+float currentTime;
+float oldTime = 0;
+float deltaTime;
+
+bool started = false;
 
 //Custom chars
 byte phoneChar[] = {
-  B11111,
-  B10001,
-  B10001,
-  B10001,
-  B10001,
-  B11111,
-  B11011,
-  B11111
-};
-
-
+    B11111,
+    B10001,
+    B10001,
+    B10001,
+    B10001,
+    B11111,
+    B11011,
+    B11111};
 
 //RIDE ID
 const String RIDE_ID = "07";
+const String RIDE_NAME = "De Cobra";
 
 // Zelf instellen voor je eigen WLAN
-const char* WLAN_SSID = "iPhone van Robin";
-const char* WLAN_ACCESS_KEY = "R0biny0!@";
+const char *WLAN_SSID = "iPhone van Robin";
+const char *WLAN_ACCESS_KEY = "R0biny0!@";
 
 // CLIENT_ID moet uniek zijn, dus zelf aanpassen (willekeurige letters en cijfers)
-const char* MQTT_CLIENT_ID = "vfduvfxjhuyrfdfvkjkffyeduhbnbfyt6665e3whiyr85yg5";
+const char *MQTT_CLIENT_ID = "vfduvfxjhuyrfdfvkjkffyeduhbnbfyt6665e3whiyr85yg5";
 const int LINE_LENGTH = 16;
 // Gegevens van de MQTT broker die we in TI-1.4 kunnen gebruiken
-const char* MQTT_BROKER_URL = "sendlab.nl";
-const int   MQTT_PORT = 11884;
-const char* MQTT_USERNAME = "ti";
-const char* MQTT_PASSWORD = "tiavans";
+const char *MQTT_BROKER_URL = "sendlab.nl";
+const int MQTT_PORT = 11884;
+const char *MQTT_USERNAME = "ti";
+const char *MQTT_PASSWORD = "tiavans";
 
 // Definieer de MQTT topics
 
 //Pushen
- char* MQTT_TOPIC_CODE = "ti/1.4/a3/code";
- char* MQTT_TOPIC_AWNSER = "ti/1.4/awnser";
- char* MQTT_CURRENT_CODE;
- char* MQTT_CURRENT_CONNECTED;
- int CURRENT_CONNECTED = 0;
+char *MQTT_TOPIC_CODE = "ti/1.4/a3/code";
+char *MQTT_TOPIC_AWNSER = "ti/1.4/awnser";
+char *MQTT_CURRENT_CODE = "not created";
+String CODE = "";
+int CURRENT_CONNECTED = 0;
 //Subscribe
- char* MQTT_TOPIC_QUESTION = "ti/1.4/a3/question";
-
-// Push & Subscribe
-
-
-
-
-//
-//const char* MQTT_TOPIC_BUTTON1 = "ti/1.4/demo/btn1";
-//const char* MQTT_TOPIC_BUTTON2 = "ti/1.4/demo/btn2";
-//const char* MQTT_TOPIC_LEDS[NR_OF_LEDS] = {
-//  "ti/1.4/demo/led/blue",
-//  "ti/1.4/demo/led/red",
-//  "ti/1.4/demo/led/yellow",
-//  "ti/1.4/demo/led/green"
-//};
+char *MQTT_TOPIC_QUESTION = "ti/1.4/a3/question";
 
 // Definieer de te gebruiken Quality of Service (QoS)
 const int MQTT_QOS = 0;
@@ -83,261 +75,490 @@ WiFiClient wifiClient;
 //WiFiClientSecure wifiClient; // Om een met TLS beveiligde verbinding te kunnen gebruiken
 PubSubClient mqttClient(wifiClient);
 LiquidCrystal_I2C lcd(0x27, 16, 2); // 0x27 is het default I2C adres van de LCD module
-bool subscribe(char* topic){
+bool subscribe(char *topic)
+{
   return mqttClient.subscribe(topic, MQTT_QOS);
 }
 
-bool unsubscribe(char* topic){
+bool unsubscribe(char *topic)
+{
   return mqttClient.unsubscribe(topic);
 }
 
-bool push_code(char* topic, String code){
+bool push_code(char *topic, String code)
+{
+  Serial.println("Pushing: Topic: " + (String)topic + " code: " + code);
   return mqttClient.publish(topic, code.c_str());
 }
-void mqttCallback(char* topic, byte* payload, unsigned int length) {
+
+void (*resetFunc)(void) = 0;
+
+void mqttCallback(char *topic, byte *payload, unsigned int length)
+{
   // Logging
   Serial.print("MQTT callback called for topic ");
   Serial.println(topic);
   Serial.print("Payload length ");
   Serial.println(length);
 
-  Serial.println(MQTT_CURRENT_CODE);
-  
-  // Kijk welk topic is ontvangen en handel daarnaar
-
-     if(strcmp(topic, MQTT_TOPIC_CODE) == 0){
-      char txt[LINE_LENGTH + 1];
-      for (int i = 0; i < LINE_LENGTH + 1; i++) { txt[i] = '\0'; }
-      strncpy(txt, (const char *) payload, length > 16 ? 16 : length);
-       // Laat de tekst zien in zowel log als op het LCD
-       Serial.print("Code: ");
-       Serial.println(txt);
-       lcd.clear();
-       lcd.setCursor(0, 0);
-       lcd.print("Enter code in ");
-       lcd.createChar(14, phoneChar);
-       lcd.setCursor(14,0);
-       lcd.write(14);
-       lcd.setCursor(0, 1);
-       lcd.print(""+(String)txt);
-       String code_topic = "ti/1.4/a3/"+(String)txt;
-       String connected_topic = "ti/1.4/a3/"+(String)txt+"/connected";
-       MQTT_CURRENT_CODE = (char*)code_topic.c_str();
-       CURRENT_CONNECTED = 0;
-       MQTT_CURRENT_CONNECTED = (char*)connected_topic.c_str();
-      if (subscribe(MQTT_CURRENT_CODE)){
-      Serial.print("Subscribed to topic: ");
-      Serial.println(MQTT_CURRENT_CODE);
-     } else {
-        lcd.clear();
-        lcd.setCursor(0,0);
-        lcd.print("Please call help");
-        lcd.setCursor(0,1);
-        lcd.print("Error: GROUP SUB");
-     }
-    
-    //     lcd.clear();
-    //     lcd.setCursor(0,0);
-    //     lcd.print("Please call help");
-    //     lcd.setCursor(0,1);
-    //     lcd.print("Error: GROUP SUB");
-    //   } else {
-    //     lcd.setCursor(11,1);
-    //     lcd.print("00/10");
-    //   } 
-     } //else{
-      
-    //   CURRENT_CONNECTED++;
-    //   Serial.println(CURRENT_CONNECTED);
-    //   if (CURRENT_CONNECTED <10)
-    //   {
-    //     lcd.setCursor(12,1);
-    //     lcd.print(CURRENT_CONNECTED);
-        
-    //   } else {
-    //     lcd.setCursor(11,1);
-    //     lcd.print(CURRENT_CONNECTED);
-    //   }
-    //   push_code(MQTT_CURRENT_CONNECTED, ""+CURRENT_CONNECTED);
-      
-    //    /* code */
-    // }
-    
+  if (MQTT_CURRENT_CODE != " not created")
+  {
+    String code_topic = "ti/1.4/a3/" + CODE;
+    MQTT_CURRENT_CODE = (char *)code_topic.c_str();
   }
 
-  
-//  if (strcmp(topic, MQTT_TOPIC_LCD) == 0) {
-//    // De payload is een tekst voor op het LCD
-//    // Let op, geen null-ter`cd.init();
-//}
+  // Kijk welk topic is ontvangen en handel daarnaar
+  if (strcmp(topic, MQTT_CURRENT_CODE) == 0)
+  {
+    char txt[LINE_LENGTH + 1];
+    for (int i = 0; i < LINE_LENGTH + 1; i++)
+    {
+      txt[i] = '\0';
+    }
+    strncpy(txt, (const char *)payload, length > 16 ? 16 : length);
+    if ((String)txt == "connect")
+    {
+      Serial.println("Connect request received");
+      CURRENT_CONNECTED++;
+      if (CURRENT_CONNECTED < 11)
+      {
+        if (CURRENT_CONNECTED == 10)
+        {
+          if (timer > 5)
+          {
+            timer = 6;
+          }
+        }
 
-String code_gen(){
-  int random_num = random(0,99);
+        if (CURRENT_CONNECTED < 10)
+        {
+          lcd.setCursor(12, 1);
+          lcd.print(CURRENT_CONNECTED);
+        }
+        else
+        {
+          lcd.setCursor(11, 1);
+          lcd.print(CURRENT_CONNECTED);
+        }
+        String code_topic = "ti/1.4/a3/" + CODE;
+        MQTT_CURRENT_CODE = (char *)code_topic.c_str();
+        push_code(MQTT_CURRENT_CODE, "accepted");
+      }
+      else
+      {
+        String code_topic = "ti/1.4/a3/" + CODE;
+        MQTT_CURRENT_CODE = (char *)code_topic.c_str();
+        push_code(MQTT_CURRENT_CODE, "FULL");
+      }
+    }
+    else if ((String)txt == "correct")
+    {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("CORRECT AWNSER!");
+      lcd.setCursor(0, 1);
+      lcd.print("check your app!");
+      delay(5000);
+      resetFunc();
+    }
+    else if ((String)txt == "incorrect")
+    {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("INCORRECT AWNSER!");
+      lcd.setCursor(0, 1);
+      lcd.print("Try again!");
+      delay(5000);
+      resetFunc();
+    }
+  }
+  if (strcmp(topic, MQTT_TOPIC_CODE) == 0)
+  {
+    char txt[LINE_LENGTH + 1];
+    for (int i = 0; i < LINE_LENGTH + 1; i++)
+    {
+      txt[i] = '\0';
+    }
+    strncpy(txt, (const char *)payload, length > 16 ? 16 : length);
+    // Laat de tekst zien in zowel log als op het LCD
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Enter code in ");
+    lcd.createChar(14, phoneChar);
+    lcd.setCursor(14, 0);
+    lcd.write(14);
+    lcd.setCursor(0, 1);
+    lcd.print("" + (String)txt);
+    String code_topic = "ti/1.4/a3/" + (String)txt;
+    CODE = (String)txt;
+    MQTT_CURRENT_CODE = (char *)code_topic.c_str();
+    CURRENT_CONNECTED = 0;
+    if (subscribe(MQTT_CURRENT_CODE))
+    {
+      Serial.print("Subscribed to topic: ");
+      Serial.println((String)MQTT_CURRENT_CODE);
+      lcd.setCursor(7, 1);
+      lcd.print(timer);
+      lcd.setCursor(11, 1);
+      lcd.print("00/10");
+      return;
+    }
+    else
+    {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Please call help");
+      lcd.setCursor(0, 1);
+      lcd.print("Error: GROUP SUB");
+      while (true)
+      {
+        /* code */
+      }
+    }
+  }
+}
+
+String code_gen()
+{
+  int random_num = random(0, 99);
   String number = (String)random_num;
-  Serial.print("random number: ");
-  Serial.println(number);
   String STRING_QUESTION_ID = "";
-  if(random_num < 10){
-     String temp_num = ""+number;
-     STRING_QUESTION_ID = "0" + temp_num;
-  } else {
-     STRING_QUESTION_ID = number;
+  if (random_num < 10)
+  {
+    String temp_num = "" + number;
+    STRING_QUESTION_ID = "0" + temp_num;
+  }
+  else
+  {
+    STRING_QUESTION_ID = number;
   }
   String ride = RIDE_ID;
-  String random_last = (String)random(10,99);
+  String random_last = (String)random(10, 99);
   Serial.print("Ride: ");
   Serial.println(ride);
   Serial.print("Question id: ");
   Serial.println(STRING_QUESTION_ID);
   Serial.print("Random last: ");
   Serial.println(random_last);
-  return ride+""+STRING_QUESTION_ID+""+random_last;
+  return ride + "" + STRING_QUESTION_ID + "" + random_last;
 }
 
+void time_out()
+{
+  String code_topic = "ti/1.4/a3/" + CODE;
+  MQTT_CURRENT_CODE = (char *)code_topic.c_str();
+  push_code(MQTT_CURRENT_CODE, "time_out");
 
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Oops tijd is op.");
+  lcd.setCursor(0, 1);
+  lcd.print("Probeer Opnieuw!");
 
+  delay(5000);
+  lcd.clear();
+  resetFunc();
+}
 
-void setup() {
-pinMode (button_1, INPUT);
-pinMode (button_2, INPUT);
-pinMode (button_3, INPUT);
-pinMode (button_4, INPUT);
-  
-  // Gekleurde LEDs worden aangestuurd met de ESP32 LED control (LEDC) library
-  // Initialiseer de LED control kanalen
-//  for (int led = 0; led < NR_OF_LEDS; led++) {
-//    ledcAttachPin(LED_PINS[led], LED_CHANNELS[led]);
-//    ledcSetup(LED_CHANNELS[led], 12000, 8); // 12 kHz PWM, 8-bit resolutie
-//    ledcWrite(LED_CHANNELS[led], ledIntensities[led]);
-//  }
-  
+void start_game()
+{
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.setCursor(0, 0);
+  lcd.print("Tijd over: ");
+  lcd.setCursor(11, 0);
+  lcd.print(timer);
+  lcd.setCursor(0, 1);
+  lcd.print("A    B    C    D");
+  String code_topic = "ti/1.4/a3/" + CODE;
+  MQTT_CURRENT_CODE = (char *)code_topic.c_str();
+  push_code(MQTT_CURRENT_CODE, "start");
+}
+
+void setup()
+{
+  pinMode(button_1, INPUT);
+  pinMode(button_2, INPUT);
+  pinMode(button_3, INPUT);
+  pinMode(button_4, INPUT);
+
   // Open de verbinding naar de seriële terminal
   Serial.begin(115200);
-  Serial.println("MQTT output:");
-  
+  Serial.println("LOG:");
+
   // Zet de LCD op
   lcd.init();
   lcd.backlight();
   lcd.setCursor(0, 0);
-  lcd.print("Connecting to:");
-  lcd.setCursor(0,1);
-  lcd.print(WLAN_SSID);
+  lcd.print("Welkom bij:");
+  lcd.setCursor(0, 1);
+  lcd.print(RIDE_NAME);
 
   // Zet de WiFi verbinding op
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
-  Serial.println("Connecting to ");
+  Serial.print("Connecting to ");
   Serial.println(WLAN_SSID);
   WiFi.begin(WLAN_SSID, WLAN_ACCESS_KEY);
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
     Serial.print(".");
     delay(1000);
   }
   lcd.clear();
-  lcd.setCursor(0,0);
+  lcd.setCursor(0, 0);
   Serial.println("WiFi connected");
-  Serial.println("IP address: ");
+  Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  lcd.print("WiFi connected");
-  lcd.setCursor(0,1);
-  lcd.print(WiFi.localIP());
+  lcd.print("Verbinding");
+  lcd.setCursor(0, 1);
+  lcd.print("gemaakt!");
   delay(2000);
 
   // Om een met TLS beveiligde verbinding te kunnen gebruiken zonder certificaten
   //wifiClient.setInsecure(); // Skip de controle, niet ideaal maar werkt voorlopig wel
 
-  
   // Zet de MQTT client op
   lcd.clear();
-  lcd.setCursor(0,0);
+  lcd.setCursor(0, 0);
 
   mqttClient.setServer(MQTT_BROKER_URL, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
-  
+
   // Maak verbinding met de MQTT broker
-  if (!mqttClient.connect(MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD)) {
+  if (!mqttClient.connect(MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD))
+  {
     Serial.println("Failed to connect to MQTT broker");
-    lcd.print("Connect failed");
-    lcd.setCursor(0,1);
-    lcd.print("to MQTT broker");
+    lcd.print("Verbinding fout");
+    lcd.setCursor(0, 1);
+    lcd.print("MQTT broker");
     delay(2500);
-  } else {
-    Serial.println("Connected to MQTT broker");
+  }
+  else
+  {
+    Serial.println("Verbonden");
     mqttConnected = true;
   }
 
-  if (mqttConnected){
+  if (mqttConnected)
+  {
     lcd.clear();
-    lcd.setCursor(0,0);
-    lcd.print("Press button to");
-    lcd.setCursor(0,1);
-    lcd.print("start!");
+    lcd.setCursor(0, 0);
+    lcd.print("Druk op knop");
+    lcd.setCursor(0, 1);
+    lcd.print("om te starten!");
     Serial.print("Subscribing to topic: ");
     Serial.println(MQTT_TOPIC_CODE);
     Serial.print("Subscribtion: ");
     Serial.println(subscribe(MQTT_TOPIC_CODE));
-  
   }
-
-
 }
 
-
-
-void loop() {
-// buttoncheck();
-if (!mqttConnected)
+void loop()
 {
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("Please call help");
-  lcd.setCursor(0,1);
-  lcd.print("Error: MQTT fail");
-  while (!mqttConnected)
+  if (oldTime == 0)
   {
-    Serial.println("not Connected");
+    oldTime = millis();
   }
-  
-}
+
+  currentTime = millis();
+  // buttoncheck();
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.print("Connecting to ");
+    Serial.println(WLAN_SSID);
+    WiFi.begin(WLAN_SSID, WLAN_ACCESS_KEY);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+
+    lcd.print("Verbinding maken");
+    lcd.setCursor(0, 1);
+    lcd.print("Moment A.U.B.");
+    delay(5000);
+    resetFunc();
+  }
+  if (!mqttConnected)
+  {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Haal hulp!");
+    lcd.setCursor(0, 1);
+    lcd.print("Error: MQTT fail");
+    while (!mqttConnected)
+    {
+
+      while (!mqttClient.connect(MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD))
+      {
+        Serial.print("Connecting mqtt");
+      }
+
+      mqttConnected = true;
+    }
+  }
+
+  deltaTime = currentTime - oldTime;
+  if (buttonPressed && CURRENT_CONNECTED > 0)
+  {
+
+    if (deltaTime >= 1000)
+    {
+      oldTime = currentTime;
+      
+      
+      if (started && !awnserpressed)
+      {
+      timer--;
+        lcd.setCursor(0, 0);
+        lcd.print("Tijd over: ");
+        lcd.setCursor(11, 0);
+        if (timer < 10)
+        {
+          lcd.print("0");
+          lcd.setCursor(12, 0);
+        }
+        lcd.print(timer);
+      }
+      else if (!started)
+      {
+      timer--;
+        lcd.setCursor(7, 1);
+        if (timer < 10)
+        {
+          lcd.print("0");
+          lcd.setCursor(8, 1);
+        }
+        lcd.print(timer); 
+      }
+    }
+    if (timer == 0)
+    {
+      timer = 30;
+      if (started)
+      {
+        time_out();
+      }
+      else
+      {
+        started = true;
+        start_game();
+      }
+    }
+  }
+  else
+  {
+    oldTime = currentTime;
+  }
+
   entry();
-// Nodig om de MQTT client zijn werk te laten doen
+  // Nodig om de MQTT client zijn werk te laten doen
   mqttClient.loop();
-
 }
 
-void buttoncheck(){
-   vbut1 = digitalRead(button_1);
-   vbut2 = digitalRead(button_2);
-   vbut3 = digitalRead(button_3);
-   vbut4 = digitalRead(button_4);
+void buttoncheck()
+{
+  vbut1 = digitalRead(button_1);
+  vbut2 = digitalRead(button_2);
+  vbut3 = digitalRead(button_3);
+  vbut4 = digitalRead(button_4);
 
-   
-// if (vbut1 == HIGH){
-//   digitalWrite(testled, HIGH);
-// }else if(vbut2 == HIGH){
-//   digitalWrite(testled, LOW);}
-//   else if(vbut3 == HIGH){
-//   digitalWrite(testled, HIGH);}
-//   else if(vbut4 == HIGH){
-//   digitalWrite(testled, LOW);}
-  
-
+  // if (vbut1 == HIGH){
+  //   digitalWrite(testled, HIGH);
+  // }else if(vbut2 == HIGH){
+  //   digitalWrite(testled, LOW);}
+  //   else if(vbut3 == HIGH){
+  //   digitalWrite(testled, HIGH);}
+  //   else if(vbut4 == HIGH){
+  //   digitalWrite(testled, LOW);}
 }
 
-void entry(){
-   
-     vbut1 = digitalRead(button_1);
-  if (!buttonPressed){
-     
-    if (vbut1 == HIGH){
+void entry()
+{
+
+  vbut1 = digitalRead(button_1);
+  vbut2 = digitalRead(button_2);
+  vbut3 = digitalRead(button_3);
+  vbut4 = digitalRead(button_4);
+
+  if (!buttonPressed)
+  {
+
+    if (vbut1 == HIGH || vbut2 == HIGH || vbut3 == HIGH || vbut4 == HIGH)
+    {
       buttonPressed = true;
       lcd.clear();
-      lcd.setCursor(7,0);
+      lcd.setCursor(7, 0);
       String generated_code = code_gen();
-      push_code(MQTT_TOPIC_CODE,generated_code);    
+      push_code(MQTT_TOPIC_CODE, generated_code);
+    }
+  }
 
+  if (started)
+  {
+    if (!awnserpressed)
+    {
+
+      if (vbut1 == HIGH)
+      {
+        if (!awnserpressed)
+        {
+          String code_topic = "ti/1.4/a3/" + CODE;
+          MQTT_CURRENT_CODE = (char *)code_topic.c_str();
+          push_code(MQTT_CURRENT_CODE, "A");
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("Jouw keuze: A");
+          lcd.setCursor(0,1);
+          lcd.print("Even Controleren");
+          awnserpressed = true;
+        }
+      }
+      else if (vbut2 == HIGH)
+      {
+        if (!awnserpressed)
+        {
+          String code_topic = "ti/1.4/a3/" + CODE;
+          MQTT_CURRENT_CODE = (char *)code_topic.c_str();
+          push_code(MQTT_CURRENT_CODE, "B");
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("Jouw keuze: B");
+          lcd.setCursor(0,1);
+          lcd.print("Even Controleren");
+          
+          awnserpressed = true;
+        }
+      }
+      else if (vbut3 == HIGH)
+      {
+        if (!awnserpressed)
+        {
+          String code_topic = "ti/1.4/a3/" + CODE;
+          MQTT_CURRENT_CODE = (char *)code_topic.c_str();
+          push_code(MQTT_CURRENT_CODE, "C");
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("Jouw keuze: C");
+          lcd.setCursor(0,1);
+          lcd.print("Even Controleren");
+          awnserpressed = true;
+        }
+      }
+      else if (vbut4 == HIGH)
+      {
+        if (!awnserpressed)
+        {
+          String code_topic = "ti/1.4/a3/" + CODE;
+          MQTT_CURRENT_CODE = (char *)code_topic.c_str();
+          push_code(MQTT_CURRENT_CODE, "D");
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("Jouw keuze: D");
+          lcd.setCursor(0,1);
+          lcd.print("Even Controleren");
+          awnserpressed = true;
+        }
+      }
     }
   }
 }
-  
