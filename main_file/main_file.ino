@@ -10,7 +10,7 @@ int button_2 = 18; //pin4
 int button_3 = 4;  //pin5
 int button_4 = 2;  //pin12
 
-String UNIQUE_DEVICE_ID = "ENTER_UNIQUE_STRING";
+String UNIQUE_DEVICE_ID = "HFSDJSLKDJFAODS";
 
 int timer = 30;
 
@@ -58,7 +58,8 @@ const char* MQTT_PASSWORD = "tiavans";
 // Definieer de MQTT topics
 
 //Pushen
-char *MQTT_TOPIC_CODE = "ti/1.4/a3/code/"+UNIQUE_DEVICE_ID;
+String Concat_unique_id = "ti/1.4/a3/code/"+UNIQUE_DEVICE_ID;
+char *MQTT_TOPIC_CODE = Concat_unique_id.c_str();
 char *MQTT_TOPIC_AWNSER = "ti/1.4/awnser";
 char *MQTT_CURRENT_CODE = "not created";
 String CODE = "";
