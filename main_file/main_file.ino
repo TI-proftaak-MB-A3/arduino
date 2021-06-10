@@ -1,3 +1,6 @@
+// Gebruikte bibliotheken
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <LiquidCrystal_I2C.h>
 
@@ -69,7 +72,7 @@ char *MQTT_TOPIC_QUESTION = "ti/1.4/a3/question";
 
 // Definieer de te gebruiken Quality of Service (QoS)
 const int MQTT_QOS = 0;
-	@@ -83,261 +75,490 @@ WiFiClient wifiClient;
+WiFiClient wifiClient;
 //WiFiClientSecure wifiClient; // Om een met TLS beveiligde verbinding te kunnen gebruiken
 PubSubClient mqttClient(wifiClient);
 LiquidCrystal_I2C lcd(0x27, 16, 2); // 0x27 is het default I2C adres van de LCD module
