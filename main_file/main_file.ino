@@ -5,10 +5,21 @@
 #include <PubSubClient.h>
 #include <LiquidCrystal_I2C.h>
 
+<<<<<<< Updated upstream
 int button_1 = 2; //pin2
 int button_2 = 4; //pin4
 int button_3 = 5; //pin5
 int button_4 = 12; //pin12
+=======
+int button_1 = 12; //pin2
+int button_2 = 18; //pin4
+int button_3 = 4;  //pin5
+int button_4 = 2;  //pin12
+
+String UNIQUE_DEVICE_ID = "ENTER_UNIQUE_STRING";
+
+int timer = 30;
+>>>>>>> Stashed changes
 
 bool buttonPressed = false;
 
@@ -35,7 +46,12 @@ byte phoneChar[] = {
 
 
 //RIDE ID
+<<<<<<< Updated upstream
 const String RIDE_ID = "07";
+=======
+const String RIDE_ID = "02";
+const String RIDE_NAME = "Astrolica";
+>>>>>>> Stashed changes
 
 // Zelf instellen voor je eigen WLAN
 const char* WLAN_SSID = "iPhone van Robin";
@@ -53,11 +69,19 @@ const char* MQTT_PASSWORD = "tiavans";
 // Definieer de MQTT topics
 
 //Pushen
+<<<<<<< Updated upstream
  char* MQTT_TOPIC_CODE = "ti/1.4/a3/code";
  char* MQTT_TOPIC_AWNSER = "ti/1.4/awnser";
  char* MQTT_CURRENT_CODE;
  char* MQTT_CURRENT_CONNECTED;
  int CURRENT_CONNECTED = 0;
+=======
+char *MQTT_TOPIC_CODE = "ti/1.4/a3/code/"+UNIQUE_DEVICE_ID;
+char *MQTT_TOPIC_AWNSER = "ti/1.4/awnser";
+char *MQTT_CURRENT_CODE = "not created";
+String CODE = "";
+int CURRENT_CONNECTED = 0;
+>>>>>>> Stashed changes
 //Subscribe
  char* MQTT_TOPIC_QUESTION = "ti/1.4/a3/question";
 
