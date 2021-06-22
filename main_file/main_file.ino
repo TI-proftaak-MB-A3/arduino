@@ -246,7 +246,7 @@ void time_out()
 {
   String code_topic = "ti/1.4/a3/" + CODE;
   mqtt_current_code = (char *)code_topic.c_str();
-  push_code(mqtt_current_code, "incorrect");
+  push_code(mqtt_current_code, "time_out");
 
   lcd.clear();
   lcd.setCursor(0, 0);
