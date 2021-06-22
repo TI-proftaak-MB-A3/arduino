@@ -39,15 +39,15 @@ byte phoneChar[] = {
     B11011,
     B11111};
 
-const String UNIQUE_DEVICE_ID = "UNIQUE_ID_STRING";
+const String UNIQUE_DEVICE_ID = "GJGFKHGJGYFG";
 
 //RIDE ID
 const String RIDE_ID = "07";
 const String RIDE_NAME = "De Cobra";
 
 // Zelf instellen voor je eigen WLAN
-const char *WLAN_SSID = "iPhone van Robin";
-const char *WLAN_ACCESS_KEY = "R0biny0!@";
+const char *WLAN_SSID = "Safehouse";
+const char *WLAN_ACCESS_KEY = "WwiELp66!";
 
 // CLIENT_ID moet uniek zijn, dus zelf aanpassen (willekeurige letters en cijfers)
 const char *MQTT_CLIENT_ID = "vfduvfxjhuyrfdfvkjkffyeduhbnbfyt6665e3whiyr85yg5";
@@ -62,13 +62,11 @@ const char *MQTT_PASSWORD = "tiavans";
 
 //Pushen
 String concat_unique_id = "ti/1.4/a3/code/"+UNIQUE_DEVICE_ID;
-char *MQTT_TOPIC_CODE = (char*)concat_unique_id.c_str();
-char *MQTT_TOPIC_AWNSER = "ti/1.4/awnser";
-char *MQTT_CURRENT_CODE = "not created";
+char *mqtt_topic_code = (char*)concat_unique_id.c_str();
+char *mqtt_topic_awnser = "ti/1.4/awnser";
+char *mqtt_current_code = "not created";
 String CODE = "";
-int CURRENT_CONNECTED = 0;
-//Subscribe
-char *MQTT_TOPIC_QUESTION = "ti/1.4/a3/question";
+int current_connected = 0;
 
 // Definieer de te gebruiken Quality of Service (QoS)
 const int MQTT_QOS = 0;
@@ -102,14 +100,14 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
   Serial.print("Payload length ");
   Serial.println(length);
 
-  if (MQTT_CURRENT_CODE != " not created")
+  if (mqtt_current_code != " not created")
   {
     String code_topic = "ti/1.4/a3/" + CODE;
-    MQTT_CURRENT_CODE = (char *)code_topic.c_str();
+    mqtt_current_code = (char *)code_topic.c_str();
   }
 
   // Kijk welk topic is ontvangen en handel daarnaar
-  if (strcmp(topic, MQTT_CURRENT_CODE) == 0)
+  if (strcmp(topic, mqtt_current_code) == 0)
   {
     char txt[LINE_LENGTH + 1];
     for (int i = 0; i < LINE_LENGTH + 1; i++)
@@ -120,10 +118,10 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
     if ((String)txt == "connect")
     {
       Serial.println("Connect request received");
-      CURRENT_CONNECTED++;
-      if (CURRENT_CONNECTED < 11)
+      current_connected++;
+      if (current_connected < 11)
       {
-        if (CURRENT_CONNECTED == 10)
+        if (current_connected == 10)
         {
           if (timer > 5)
           {
@@ -131,34 +129,34 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
           }
         }
 
-        if (CURRENT_CONNECTED < 10)
+        if (current_connected < 10)
         {
           lcd.setCursor(12, 1);
-          lcd.print(CURRENT_CONNECTED);
+          lcd.print(current_connected);
         }
         else
         {
           lcd.setCursor(11, 1);
-          lcd.print(CURRENT_CONNECTED);
+          lcd.print(current_connected);
         }
         String code_topic = "ti/1.4/a3/" + CODE;
-        MQTT_CURRENT_CODE = (char *)code_topic.c_str();
-        push_code(MQTT_CURRENT_CODE, "accepted");
+        mqtt_current_code = (char *)code_topic.c_str();
+        push_code(mqtt_current_code, "accepted");
       }
       else
       {
         String code_topic = "ti/1.4/a3/" + CODE;
-        MQTT_CURRENT_CODE = (char *)code_topic.c_str();
-        push_code(MQTT_CURRENT_CODE, "FULL");
+        mqtt_current_code = (char *)code_topic.c_str();
+        push_code(mqtt_current_code, "FULL");
       }
     }
     else if ((String)txt == "correct")
     {
       lcd.clear();
       lcd.setCursor(0, 0);
-      lcd.print("CORRECT AWNSER!");
+      lcd.print("GOED ANTWOORD!");
       lcd.setCursor(0, 1);
-      lcd.print("check your app!");
+      lcd.print("kijk in je app!");
       delay(5000);
       resetFunc();
     }
@@ -166,14 +164,14 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
     {
       lcd.clear();
       lcd.setCursor(0, 0);
-      lcd.print("INCORRECT AWNSER!");
+      lcd.print("FOUT ANTWOORD!");
       lcd.setCursor(0, 1);
-      lcd.print("Try again!");
+      lcd.print("Probeer opnieuw!");
       delay(5000);
       resetFunc();
     }
   }
-  if (strcmp(topic, MQTT_TOPIC_CODE) == 0)
+  if (strcmp(topic, mqtt_topic_code) == 0)
   {
     char txt[LINE_LENGTH + 1];
     for (int i = 0; i < LINE_LENGTH + 1; i++)
@@ -184,7 +182,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
     // Laat de tekst zien in zowel log als op het LCD
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Enter code in ");
+    lcd.print("Vul code in op ");
     lcd.createChar(14, phoneChar);
     lcd.setCursor(14, 0);
     lcd.write(14);
@@ -192,12 +190,12 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
     lcd.print("" + (String)txt);
     String code_topic = "ti/1.4/a3/" + (String)txt;
     CODE = (String)txt;
-    MQTT_CURRENT_CODE = (char *)code_topic.c_str();
-    CURRENT_CONNECTED = 0;
-    if (subscribe(MQTT_CURRENT_CODE))
+    mqtt_current_code = (char *)code_topic.c_str();
+    current_connected = 0;
+    if (subscribe(mqtt_current_code))
     {
       Serial.print("Subscribed to topic: ");
-      Serial.println((String)MQTT_CURRENT_CODE);
+      Serial.println((String)mqtt_current_code);
       lcd.setCursor(7, 1);
       lcd.print(timer);
       lcd.setCursor(11, 1);
@@ -208,7 +206,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
     {
       lcd.clear();
       lcd.setCursor(0, 0);
-      lcd.print("Please call help");
+      lcd.print("Haal hulp!");
       lcd.setCursor(0, 1);
       lcd.print("Error: GROUP SUB");
       while (true)
@@ -247,8 +245,8 @@ String code_gen()
 void time_out()
 {
   String code_topic = "ti/1.4/a3/" + CODE;
-  MQTT_CURRENT_CODE = (char *)code_topic.c_str();
-  push_code(MQTT_CURRENT_CODE, "time_out");
+  mqtt_current_code = (char *)code_topic.c_str();
+  push_code(mqtt_current_code, "incorrect");
 
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -272,8 +270,8 @@ void start_game()
   lcd.setCursor(0, 1);
   lcd.print("A    B    C    D");
   String code_topic = "ti/1.4/a3/" + CODE;
-  MQTT_CURRENT_CODE = (char *)code_topic.c_str();
-  push_code(MQTT_CURRENT_CODE, "start");
+  mqtt_current_code = (char *)code_topic.c_str();
+  push_code(mqtt_current_code, "start");
 }
 
 void setup()
@@ -350,9 +348,9 @@ void setup()
     lcd.setCursor(0, 1);
     lcd.print("om te starten!");
     Serial.print("Subscribing to topic: ");
-    Serial.println(MQTT_TOPIC_CODE);
+    Serial.println(mqtt_topic_code);
     Serial.print("Subscribtion: ");
-    Serial.println(subscribe(MQTT_TOPIC_CODE));
+    Serial.println(subscribe(mqtt_topic_code));
   }
 }
 
@@ -399,7 +397,7 @@ void loop()
   }
 
   deltaTime = currentTime - oldTime;
-  if (buttonPressed && CURRENT_CONNECTED > 0)
+  if (buttonPressed && current_connected > 0)
   {
 
     if (deltaTime >= 1000)
@@ -490,7 +488,7 @@ void entry()
       lcd.clear();
       lcd.setCursor(7, 0);
       String generated_code = code_gen();
-      push_code(MQTT_TOPIC_CODE, generated_code);
+      push_code(mqtt_topic_code, generated_code);
     }
   }
 
@@ -504,8 +502,8 @@ void entry()
         if (!awnserpressed)
         {
           String code_topic = "ti/1.4/a3/" + CODE;
-          MQTT_CURRENT_CODE = (char *)code_topic.c_str();
-          push_code(MQTT_CURRENT_CODE, "A");
+          mqtt_current_code = (char *)code_topic.c_str();
+          push_code(mqtt_current_code, "A");
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("Jouw keuze: A");
@@ -519,8 +517,8 @@ void entry()
         if (!awnserpressed)
         {
           String code_topic = "ti/1.4/a3/" + CODE;
-          MQTT_CURRENT_CODE = (char *)code_topic.c_str();
-          push_code(MQTT_CURRENT_CODE, "B");
+          mqtt_current_code = (char *)code_topic.c_str();
+          push_code(mqtt_current_code, "B");
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("Jouw keuze: B");
@@ -535,8 +533,8 @@ void entry()
         if (!awnserpressed)
         {
           String code_topic = "ti/1.4/a3/" + CODE;
-          MQTT_CURRENT_CODE = (char *)code_topic.c_str();
-          push_code(MQTT_CURRENT_CODE, "C");
+          mqtt_current_code = (char *)code_topic.c_str();
+          push_code(mqtt_current_code, "C");
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("Jouw keuze: C");
@@ -550,8 +548,8 @@ void entry()
         if (!awnserpressed)
         {
           String code_topic = "ti/1.4/a3/" + CODE;
-          MQTT_CURRENT_CODE = (char *)code_topic.c_str();
-          push_code(MQTT_CURRENT_CODE, "D");
+          mqtt_current_code = (char *)code_topic.c_str();
+          push_code(mqtt_current_code, "D");
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("Jouw keuze: D");
