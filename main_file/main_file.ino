@@ -183,9 +183,9 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Vul code in op ");
-    lcd.createChar(14, phoneChar);
-    lcd.setCursor(14, 0);
-    lcd.write(14);
+    lcd.createChar(15, phoneChar);
+    lcd.setCursor(15, 0);
+    lcd.write(15);
     lcd.setCursor(0, 1);
     lcd.print("" + (String)txt);
     String code_topic = "ti/1.4/a3/" + (String)txt;
